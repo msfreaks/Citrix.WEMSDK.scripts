@@ -20,7 +20,7 @@ $share2         = "\\$($fileServer)\share2"               # used for DriveShare 
 $share3         = "\\$($fileServer)\home"                 # used for DriveShare 3 -> HomeDrive
 $share4         = "\\$($fileServer)\test"                 # used for DriveShare 4 -> Test Share which gets deleted
 
-# this only works if the ActiveDirectory Module is present
+# these only work if the ActiveDirectory Module is present
 $SID1           = (Get-ADUser "<user1>").SID.ToString()   # used for ADObjects creation and assignment tests
 $SID2           = (Get-ADUser "<user2>").SID.ToString()   # used for ADObjects creation and administrator tests
 $SID3           = (Get-ADGroup "<group1>").SID.ToString() # used for ADObjects creation and to modify assignments
