@@ -2,11 +2,11 @@
 if (-not (Get-Module -ListAvailable Citrix.WEMSDK -ErrorAction SilentlyContinue)) { Import-Module Citrix.WEMSDK }
 
 # set required database variables
-$database       = "<wem database name>"                   # name of the WEM database to talk to
-$databaseServer = "<sql servername>"                      # SQL servername (user 'servername\instancename' if using named instances)
+$database       = ""                                      # name of the WEM database to talk to
+$databaseServer = ""                                      # SQL servername (user 'servername\instancename' if using named instances)
 
 # set variables used by the functions
-$configname     = "POSH 1912"                             # New WEM Config (Site) name
+$configname     = "POSH 2003"                             # New WEM Config (Site) name
 
 $printServer    = "<servername>"                          # used for Printer mappings
 $fileServer     = "<servername>"                          # used for Network Drive mappings
@@ -1162,7 +1162,7 @@ Reset-WEMAppLockerSettings -Connection $db -Verbose -IdSite $conf.IdSite
 $configAppLockerSettings = Get-WEMAppLockerSettings -Connection $db -Verbose -IdSite $conf.IdSite
 $configAppLockerSettings | Format-Table -AutoSize
 
-# Set-WEMGroupPolicyGlobalSettings -> CAREFUL! These are not visible in WEM Admin Console 1906. I don't know where they are used
+# Set-WEMGroupPolicyGlobalSettings -> CAREFUL! These are not visible in WEM Admin Console 1906-2003. I don't know where they are used
 $configGroupPolicyGlobalSettings  = @{
     EnableGroupPolicyEnforcement  = 1
     Test = "dummy"
@@ -1208,6 +1208,27 @@ $configSystemMonitoringSettings | Format-Table -AutoSize
 
 #endregion
 
+#region CitrixOptimizerConfigurations
+$conf = Get-WEMConfiguration -Connection $db -Verbose -Name "$($configname)"
+
+# New-WEMCitrixOptimizerConfiguration
+#$conf | New-WEMCitrixOptimizerConfiguration -Connection $db -Verbose -TemplateXmlFile "C:\Citrix Optimzer\Templates\Citrix.WEMSDK.test.xml" -Targets @("Windows 10 Version 1903") -State Disabled
+
+# Get-WEMCitrixOptimizerConfiguration
+$allCitrixOptimizerConfigurations = $conf | Get-WEMCitrixOptimizerConfiguration -Connection $db -Verbose
+#$newCitrixOptimizerConfiguration = $conf | Get-WEMCitrixOptimizerConfiguration -Connection $db -Name "Citrix.WEMSDK.test"
+$allCitrixOptimizerConfigurations | Format-Table
+
+# Set-WEMCitrixOptimizerConfiguration
+$allCitrixOptimizerConfigurations | ForEach-Object { Set-WEMCitrixOptimizerConfiguration -Connection $db -Verbose -IdSite $_.IdSite -IdTemplate $_.IdTemplate -State Disabled }
+#Set-WEMCitrixOptimizerConfiguration -Connection $db -Verbose -IdSite $newCitrixOptimizerConfiguration.IdSite -IdTemplate $newCitrixOptimizerConfiguration.IdTemplate -State Enabled
+
+# Remove-WEMCitrixOptimizerConfiguration
+#Remove-WEMApplication -Connection $db -Verbose -IdSite $conf.IdSite -IdTemplate $newCitrixOptimizerConfiguration.IdTemplate
+
+$allCitrixOptimizerConfigurations = $conf | Get-WEMCitrixOptimizerConfiguration -Connection $db -Verbose
+#endregion
+
 # generate some output
 $allActions        | Select-Object IdAction, IdSite, Category, Name, DisplayName, Description, State, Type, ActionType | Format-Table
 $allADObjects      | Where-Object { $_.Type -notlike "BUILTIN" } | Select-Object IdADObject, IdSite, Name, Description, State, Type, Priority | Format-Table
@@ -1218,6 +1239,7 @@ $allAssignments    | Format-Table
 $allAgentObjects   | Format-Table
 $allAdministrators | Format-Table
 $allAppLockerRules | Format-Table
+$allCitrixOptimizerConfigurations | Select-Object IdTemplate, IdSite, Name, Targets, State | Format-Table
 
 # dispose of the database connection
 $db.Dispose()
