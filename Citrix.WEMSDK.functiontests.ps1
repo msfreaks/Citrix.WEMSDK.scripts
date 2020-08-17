@@ -2,11 +2,11 @@
 if (-not (Get-Module -ListAvailable Citrix.WEMSDK -ErrorAction SilentlyContinue)) { Import-Module Citrix.WEMSDK }
 
 # set required database variables
-$database       = ""                                      # name of the WEM database to talk to
-$databaseServer = ""                                      # SQL servername (user 'servername\instancename' if using named instances)
+$database       = "CitrixWEM2006"                                      # name of the WEM database to talk to
+$databaseServer = "ca002511\wemlab"                                      # SQL servername (user 'servername\instancename' if using named instances)
 
 # set variables used by the functions
-$configname     = "POSH 2003"                             # New WEM Config (Site) name
+$configname     = "POSH 2006"                             # New WEM Config (Site) name
 
 $printServer    = "<servername>"                          # used for Printer mappings
 $fileServer     = "<servername>"                          # used for Network Drive mappings
@@ -30,8 +30,12 @@ $SID5           = (Get-ADGroup "<group3>").SID.ToString() # used for ADObjects t
 $AgentOU        = (Get-ADOrganizationalUnit "OU=<ou name>,DC=<dc name>,DC=<dc name>").ObjectGUID.Guid
 $AgentComputer  = (Get-ADComputer "<computer1>").SID
 
+$gpotest1path   = "C:\install\gpotest\{692A19E3-6BF6-4E10-BF2C-E4762CCE4E06}"
+$gpotest2path   = "C:\install\gpotest\{FB0E9CC7-887F-40B1-ABED-776A788AB90E}"
+
 # set up the database connection
 $db             = New-WEMDatabaseConnection -Server "$($databaseServer)" -Database "$($database)" -Verbose
+                  Get-WEMDatabaseVersion -Connection $db -Verbose
 
 #region WEMConfiguration
 # New-WEMConfiguration
@@ -520,6 +524,30 @@ $allActionGroups = $conf | Get-WEMActionGroup -Connection $db -Verbose
 
 #endregion
 
+#region WEMGroupPolicyObject
+$conf = Get-WEMConfiguration -Connection $db -Verbose -Name "$($configname)"
+
+# New-WEMGroupPolicyObject
+$conf | New-WEMGroupPolicyObject -Connection $db -Verbose -Path $gpotest1path -Overwrite
+$gpotest1 = $conf | New-WEMGroupPolicyObject -Connection $db -Verbose -Path $gpotest2path
+
+# Get-WEMGroupPolicyObject
+$allGPOs = $conf | Get-WEMGroupPolicyObject -Connection $db -Verbose
+$gpotest2 = $conf | Get-WEMGroupPolicyObject -Connection $db -Verbose -Name $gpotest1.Name
+
+$allGPOs | Format-Table
+
+# Set-WEMGroupPolicyObject
+$allGPOs | ForEach-Object { Set-WEMGroupPolicyObject -Connection $db -Verbose -IdObject $_.IdObject -Description "Set-WEMGroupPolicyObject" }
+Set-WEMGroupPolicyObject -Connection $db -Verbose -IdObject $gpotest2.IdObject -Name "Set-WEMGroupPolicyObject"
+
+# Remove-WEMGroupPolicyObject
+Remove-WEMGroupPolicyObject -Connection $db -Verbose -IdObject $gpotest2.IdObject
+
+$gpotest2 = $conf | New-WEMGroupPolicyObject -Connection $db -Verbose -Path $gpotest2path
+$allGPOs = $conf | Get-WEMGroupPolicyObject -Connection $db -Verbose
+#endregion
+
 #region WEMAssignments
 
 #region WEMApplicationAssignments
@@ -903,7 +931,32 @@ $testAssignment | Remove-WEMActionGroupAssignment -Connection $db -Verbose
 
 #endregion
 
+#region WEMGroupPolicyObjectAssignments
+$conf = Get-WEMConfiguration -Connection $db -Verbose -Name "$($configname)"
+
+# New-WEMGroupPolicyObjectAssignment
+$adobject = (Get-WEMADUserObject -Connection $db -IdSite $conf.IdSite -Name "S-1-1-0").IdADObject
+$rule = (Get-WEMRule -Connection $db -Name "Always True").IdRule
+$allGPOs[0] | New-WEMGroupPolicyObjectAssignment -Connection $db -Verbose -IdADObject $adobject -IdRule $rule -Priority 10
+$allGPOs[1] | New-WEMGroupPolicyObjectAssignment -Connection $db -Verbose -IdADObject $adobject -IdRule $rule -Priority 100
+
+# Get-WEMGroupPolicyObjectAssignment
+# $conf | Get-WEMGroupPolicyObjectAssignment -Connection $db -Verbose | Format-Table
+$allGPOAssignments = $conf | Get-WEMGroupPolicyObjectAssignment -Connection $db -Verbose
+$allGPOAssignments | Format-Table
+
+# Set-WEMGroupPolicyObjectAssignment
+$allGPOAssignments[0] | Set-WEMGroupPolicyObjectAssignment -Connection $db -Verbose -Priority 200
+
+# Remove-WEMGroupPolicyObjectAssignment
+$allGPOAssignments[1] | Remove-WEMGroupPolicyObjectAssignment -Connection $db -Verbose
+
+# $allAppAssignments = $conf | Get-WEMAssignment -Connection $db -Verbose -AssignmentType "Application"
+
+#endregion
+
 $allAssignments = $conf | Get-WEMAssignment -Connection $db -Verbose
+$allGPOAssignments = $conf | Get-WEMGroupPolicyObjectAssignment -Connection $db -Verbose
 
 #endregion
 
@@ -1212,7 +1265,7 @@ $configSystemMonitoringSettings | Format-Table -AutoSize
 $conf = Get-WEMConfiguration -Connection $db -Verbose -Name "$($configname)"
 
 # New-WEMCitrixOptimizerConfiguration
-#$conf | New-WEMCitrixOptimizerConfiguration -Connection $db -Verbose -TemplateXmlFile "C:\Citrix Optimzer\Templates\Citrix.WEMSDK.test.xml" -Targets @("Windows 10 Version 1903") -State Disabled
+$conf | New-WEMCitrixOptimizerConfiguration -Connection $db -Verbose -TemplateXmlFile "<path to Citrix Optimizer template Xml file>" -Targets @("Windows 10 Version 1903") -State Disabled
 
 # Get-WEMCitrixOptimizerConfiguration
 $allCitrixOptimizerConfigurations = $conf | Get-WEMCitrixOptimizerConfiguration -Connection $db -Verbose
@@ -1231,6 +1284,7 @@ $allCitrixOptimizerConfigurations = $conf | Get-WEMCitrixOptimizerConfiguration 
 
 # generate some output
 $allActions        | Select-Object IdAction, IdSite, Category, Name, DisplayName, Description, State, Type, ActionType | Format-Table
+$allGPOs           | Format-Table
 $allADObjects      | Where-Object { $_.Type -notlike "BUILTIN" } | Select-Object IdADObject, IdSite, Name, Description, State, Type, Priority | Format-Table
 $allConditions     | Select-Object IdSite, IdCondition, Name, Type, TestValue, TestResult | Format-Table
 $allRules          | Select-Object IdSite, IdRule, Name, Conditions | Format-Table
