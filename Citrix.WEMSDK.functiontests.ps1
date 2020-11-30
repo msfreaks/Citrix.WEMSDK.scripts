@@ -2,11 +2,11 @@
 if (-not (Get-Module -ListAvailable Citrix.WEMSDK -ErrorAction SilentlyContinue)) { Import-Module Citrix.WEMSDK }
 
 # set required database variables
-$database       = "CitrixWEM2006"                                      # name of the WEM database to talk to
-$databaseServer = "ca002511\wemlab"                                      # SQL servername (user 'servername\instancename' if using named instances)
+$database       = ""                                      # name of the WEM database to talk to
+$databaseServer = ""                                      # SQL servername (user 'servername\instancename' if using named instances)
 
 # set variables used by the functions
-$configname     = "POSH 2006"                             # New WEM Config (Site) name
+$configname     = "POSH 2009"                             # New WEM Config (Site) name
 
 $printServer    = "<servername>"                          # used for Printer mappings
 $fileServer     = "<servername>"                          # used for Network Drive mappings
@@ -30,8 +30,8 @@ $SID5           = (Get-ADGroup "<group3>").SID.ToString() # used for ADObjects t
 $AgentOU        = (Get-ADOrganizationalUnit "OU=<ou name>,DC=<dc name>,DC=<dc name>").ObjectGUID.Guid
 $AgentComputer  = (Get-ADComputer "<computer1>").SID
 
-$gpotest1path   = "C:\install\gpotest\{692A19E3-6BF6-4E10-BF2C-E4762CCE4E06}"
-$gpotest2path   = "C:\install\gpotest\{FB0E9CC7-887F-40B1-ABED-776A788AB90E}"
+$gpotest1path   = "<path to>\{<gpoguid>}"
+$gpotest2path   = "<path to>\gpotest\{<gpoguid>}"
 
 # set up the database connection
 $db             = New-WEMDatabaseConnection -Server "$($databaseServer)" -Database "$($database)" -Verbose
